@@ -32,8 +32,17 @@ const connection = mysql.createConnection({
     host: '192.168.4.6',
     user: 'desarrolloti',
     password: 'd3cr3t05',
-    database: 'bd_inmobiliario'
+    database: 'bd_inmobiliario',
+    waitForConnections: true,
+    connectionLimit: 10,
+    queueLimit: 0,
+    connectTimeout: 10000,
+    keepAliveInitialDelay: 10000
 });
+// Habilitar keep-alive en el pool
+connection.on('connection', function (connection) {
+    connection.ping();  // Envía un ping para mantener la conexión activa
+  });
 
 connection.connect((err) => {
     if (err) {
@@ -43,6 +52,26 @@ connection.connect((err) => {
         console.log('Conectado a la base de datos MySQL.');
     }
 });
+
+// Pool de conexiones para la base de datos
+connection.on('error', function(err) {
+    console.log('Error en la base de datos:', err);
+    if (err.code === 'PROTOCOL_CONNECTION_LOST') {
+      // En caso de pérdida de conexión, intenta reconectar
+      console.log('Conexión perdida. Intentando reconectar...');
+      pool.getConnection((error, connection) => {
+        if (error) {
+          console.error('Error al reconectar:', error);
+        } else {
+          console.log('Reconexión exitosa.');
+          connection.release();
+        }
+      });
+    } else {
+      throw err;  // Lanza otros errores
+    }
+  });
+
 
 // Función para convertir fechas de Excel a formato MySQL (YYYY-MM-DD)
 function excelDateToJSDate(excelDate) {
